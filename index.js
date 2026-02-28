@@ -44,7 +44,12 @@ admin.initializeApp({
 
 // middleware
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "http://localhost:3000"],
+    credentials: true,
+  }),
+);
 // middleware with database access
 
 // Mongodb Connection string
@@ -62,7 +67,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const db = client.db("eTuitionBD_db");
     const tuitionsCollection = db.collection("tuitions");
@@ -107,10 +112,17 @@ async function run() {
     // User Api
     app.get("/tuitions", async (req, res) => {
       const query = { status: "Approved" };
+      const { limit = 0, skip = 0 } = req.query;
 
-      const cursor = tuitionsCollection.find(query);
+      const cursor = tuitionsCollection
+        .find(query)
+        .project({ email: 0, duration: 0, studentCount: 0, status: 0 })
+        .limit(Number(limit))
+        .skip(Number(skip));
+
+      const count = await tuitionsCollection.countDocuments();
       const result = await cursor.toArray();
-      res.send(result);
+      res.send({ result, total: count });
     });
 
     // Api for all users
@@ -125,7 +137,10 @@ async function run() {
     // To get Tuitions for homepage 4
     app.get("/tuition-homepage", async (req, res) => {
       const query = {};
-      const cursor = tuitionsCollection.find(query).limit(4);
+      const cursor = tuitionsCollection
+        .find(query)
+        .limit(4)
+        .project({ email: 0, duration: 0, studentCount: 0, status: 0 });
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -488,5 +503,5 @@ app.get("/", (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`eTuitionBD app listening on port ${port}`);
 });
