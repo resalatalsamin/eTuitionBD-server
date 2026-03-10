@@ -257,12 +257,45 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/my-applications/:email", async (req, res) => {
+      const email = req.params.email;
+
+      const query = { bookedBy: email };
+
+      const result = await bookingCollection.find(query).toArray();
+
+      res.send(result);
+    });
+
+    app.get("/tutor-earnings/:email", async (req, res) => {
+      const email = req.params.email;
+
+      const query = {
+        tutorEmail: email,
+        status: "Approved",
+      };
+
+      const approvedBookings = await bookingCollection.find(query).toArray();
+
+      // calculate total earnings
+      let totalEarnings = 0;
+
+      approvedBookings.forEach((booking) => {
+        totalEarnings += Number(booking.expectedSalary);
+      });
+
+      res.send({
+        earnings: approvedBookings,
+        totalEarnings: totalEarnings,
+      });
+    });
+
     // To store data for Applies
     app.post("/application", verifyFBToken, async (req, res) => {
       const data = req.body;
       const bookingData = {
         ...data,
-        bookingId: generateBookingId(), // ✅ ADD THIS
+        bookingId: generateBookingId(),
         createdAt: new Date(),
       };
 
@@ -329,6 +362,31 @@ async function run() {
       const options = {};
       const result = await tuitionsCollection.updateOne(query, update, options);
       res.send(result);
+    });
+
+    // --- Backend Route for Profile Update ---
+
+    app.patch("/update-profile/:email", async (req, res) => {
+      const email = req.params.email;
+      const updatedUser = req.body;
+
+      const query = { email: email };
+
+      const updateDoc = {
+        $set: {
+          displayName: updatedUser.name,
+          photoURL: updatedUser.photo,
+          phoneNumber: updatedUser.phone,
+        },
+      };
+
+      try {
+        const result = await userCollection.updateOne(query, updateDoc);
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
     });
 
     // to make Admin to anyone
